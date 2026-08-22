@@ -5,6 +5,8 @@ import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
 import { ShaderPass } from "three/addons/postprocessing/ShaderPass.js";
 
+export type AiState = "idle" | "listening" | "thinking" | "speaking";
+
 export interface OrbSceneApi {
   /** Rotate the camera around the orb by the given angles (radians). */
   rotateBy(deltaTheta: number, deltaPhi: number): void;
@@ -13,6 +15,7 @@ export interface OrbSceneApi {
   zoomIn(): void;
   zoomOut(): void;
   resetView(): void;
+  setAiState(state: AiState): void;
   dispose(): void;
 }
 
@@ -802,14 +805,31 @@ export function createOrbScene(container: HTMLElement): OrbSceneApi {
       });
     }
 
-    // Bloom pulse
-    bloom.strength = 1.6 + Math.sin(t * 0.8) * 0.3;
+    // Bloom pulse reacting to AI state
+    let baseBloom = 1.6;
+    let bloomPulse = Math.sin(t * 0.8) * 0.3;
+    if (currentAiState === "listening") {
+      baseBloom = 2.4;
+      bloomPulse = Math.sin(t * 4.0) * 0.6;
+    } else if (currentAiState === "thinking") {
+      baseBloom = 3.2;
+      bloomPulse = Math.sin(t * 12.0) * 1.1;
+    } else if (currentAiState === "speaking") {
+      baseBloom = 2.8;
+      bloomPulse = Math.sin(t * 6.0) * 0.8;
+    }
+    bloom.strength = baseBloom + bloomPulse;
 
     // Update chromatic aberration time
     chromaticPass.uniforms.uTime.value = t;
 
     controls.update();
     composer.render();
+  }
+
+  let currentAiState: AiState = "idle";
+  function setAiState(state: AiState) {
+    currentAiState = state;
   }
 
   animate();
@@ -853,6 +873,7 @@ export function createOrbScene(container: HTMLElement): OrbSceneApi {
     zoomIn: () => zoomBy(0.65),
     zoomOut: () => zoomBy(1.55),
     resetView,
+    setAiState,
     dispose,
   };
 }
